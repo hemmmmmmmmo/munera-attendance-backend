@@ -1,17 +1,18 @@
 const { google } = require('googleapis');
-const moment = require('moment'); // Add this if not already
+const moment = require('moment');
 
-const spreadsheetId = process.env.GOOGLE_SHEET_ID; // Loaded from .env
-const range = 'Delegates'; // Your sheet tab name
+const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+const range = 'Delegates';
 
 async function logToGoogleSheet(delegateId, time, scannedBy, status) {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: 'google-service-account.json',
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
+  const auth = new google.auth.JWT(
+    process.env.GOOGLE_SERVICE_EMAIL,
+    null,
+    process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
+    ['https://www.googleapis.com/auth/spreadsheets']
+  );
 
-  const client = await auth.getClient();
-  const sheets = google.sheets({ version: 'v4', auth: client });
+  const sheets = google.sheets({ version: 'v4', auth });
 
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,

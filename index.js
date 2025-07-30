@@ -41,10 +41,8 @@ app.post('/scan', async (req, res) => {
   if (!id) return res.status(400).json({ error: 'Missing delegate ID' });
 
   try {
-    const day = getCurrentDay();
-    if (!day) {
-      return res.status(403).json({ error: 'Outside of MUNERA attendance dates' });
-    }
+    const day = "Day 1"; // 🔁 Force Day 1 during testing
+
 
     const timeNow = moment.tz("Asia/Dubai").format("HH:mm");
     const fullTimestamp = moment.tz("Asia/Dubai").format("YYYY-MM-DD HH:mm:ss");
@@ -90,7 +88,7 @@ app.post('/scan', async (req, res) => {
     }
 
     // ✅ Not scanned yet — mark attendance
-    await logToGoogleSheet(id, timeNow, name);
+    await logToGoogleSheet(id, timeNow, name,status);
 
     return res.json({ message: `Marked ${status} at ${timeNow}` });
   } catch (err) {

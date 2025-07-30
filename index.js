@@ -1,8 +1,9 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
-const moment = require('moment-timezone'); // Make sure you have moment-timezone
+const moment = require('moment-timezone');
 const { logToGoogleSheet } = require('./sheetLogger');
+const { google } = require('googleapis');
 
 dotenv.config();
 
@@ -48,8 +49,48 @@ app.post('/scan', async (req, res) => {
     const timeNow = moment.tz("Asia/Dubai").format("HH:mm");
     const fullTimestamp = moment.tz("Asia/Dubai").format("YYYY-MM-DD HH:mm:ss");
     const status = getStatus();
+    const name = scannedBy || "MUNERA Staff";
 
-    await logToGoogleSheet(id, timeNow, scannedBy || "MUNERA Staff");
+    // 🔍 Connect to Google Sheets
+    const auth = new google.auth.JWT(
+      process.env.GOOGLE_SERVICE_EMAIL,
+      null,
+      process.env.PRIVATE_KEY.replace(/\\n/g, '\n'),
+      ['https://www.googleapis.com/auth/spreadsheets']
+    );
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const SHEET_NAME = 'Delegates';
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: process.env.GOOGLE_SHEET_ID,
+      range: SHEET_NAME,
+    });
+
+    const rows = response.data.values;
+    const header = rows[0];
+
+    const idIndex = header.indexOf("ID");
+    const statusIndex = header.indexOf(`${day} Status`);
+    const timeIndex = header.indexOf(`${day} Time`);
+    const scanByIndex = header.indexOf("Scanned By");
+
+    const rowIndex = rows.findIndex(row => row[idIndex] === id);
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: "Delegate not found in sheet" });
+    }
+
+    const alreadyStatus = rows[rowIndex][statusIndex];
+    const alreadyTime = rows[rowIndex][timeIndex];
+    const alreadyBy = rows[rowIndex][scanByIndex];
+
+    if (alreadyStatus === "Present" || alreadyStatus === "Late") {
+      return res.status(409).json({
+        error: `Already scanned today at ${alreadyTime || "unknown"} by ${alreadyBy || "unknown"}`
+      });
+    }
+
+    // ✅ Not scanned yet — mark attendance
+    await logToGoogleSheet(id, timeNow, name);
 
     return res.json({ message: `Marked ${status} at ${timeNow}` });
   } catch (err) {

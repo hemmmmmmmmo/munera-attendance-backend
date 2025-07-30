@@ -12,6 +12,7 @@ async function logToGoogleSheet(delegateId, time, scannedBy, status) {
     ['https://www.googleapis.com/auth/spreadsheets']
   );
 
+  const client = await auth.authorize();
   const sheets = google.sheets({ version: 'v4', auth });
 
   const response = await sheets.spreadsheets.values.get({
@@ -23,15 +24,17 @@ async function logToGoogleSheet(delegateId, time, scannedBy, status) {
   const headers = rows[0];
 
   const idIndex = headers.indexOf('ID');
-  const timeIndex = headers.indexOf('Last Scan Timestamp');
-  const byIndex = headers.indexOf('Scanned By');
+  const scannedByIndex = headers.indexOf('Scanned By');
+  const day = 'Day 1'; // Make sure this matches index.js
+
+  const statusIndex = headers.indexOf(day);
+  if (statusIndex === -1) throw new Error(`Missing column: ${day}`);
 
   const rowIndex = rows.findIndex(row => row[idIndex] === delegateId);
   if (rowIndex === -1) throw new Error("Delegate not found in sheet");
 
-  const updateRange = `${range}!${String.fromCharCode(65 + timeIndex)}${rowIndex + 1}:${String.fromCharCode(65 + byIndex)}${rowIndex + 1}`;
-
   const formatted = `${status} (${moment(time, "HH:mm").format("h:mm A")})`;
+  const updateRange = `${range}!${String.fromCharCode(65 + statusIndex)}${rowIndex + 1}:${String.fromCharCode(65 + scannedByIndex)}${rowIndex + 1}`;
   const values = [[formatted, scannedBy]];
 
   await sheets.spreadsheets.values.update({

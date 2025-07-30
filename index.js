@@ -92,8 +92,9 @@ app.post('/scan', async (req, res) => {
 
     return res.json({ message: `Marked ${status} at ${timeNow}` });
   } catch (err) {
-    console.error('[❌ Attendance Error]:', err.message || err);
-    return res.status(500).json({ error: 'Server error while scanning' });
+console.error('[❌ Attendance Error]:', err);
+return res.status(500).json({ error: err.message || 'Unknown error' });
+
   }
 });
 
